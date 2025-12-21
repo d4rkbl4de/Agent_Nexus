@@ -1,0 +1,14 @@
+# Virtual Environment
+venv/
+
+# Environment variables (sensitive data)
+.env
+.envpython
+
+# Bytecode
+__pycache__/
+
+# IDE/OS files
+.vscode/
+*.DS_Store
+Thumbs.db

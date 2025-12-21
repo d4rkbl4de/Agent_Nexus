@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+dramatiq
+##dramatiq-redis-broker
+asyncpg
+SQLAlchemy
+qdrant-client
+langgraph
+langchain-core
+httpx
+python-dotenv

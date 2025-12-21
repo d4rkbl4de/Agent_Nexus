@@ -1,0 +1,1 @@
+# Generic worker package initialization
