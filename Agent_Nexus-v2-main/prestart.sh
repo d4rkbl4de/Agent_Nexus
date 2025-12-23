@@ -1,22 +1,30 @@
 #!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status
 set -e
 
-echo "Waiting for Postgres to wake up..."
+echo "PRESTART: Checking Database Connectivity..."
+python << END
+import sys
+import psycopg2
+import os
+try:
+    psycopg2.connect(
+        dbname=os.getenv("POSTGRES_DB"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+        host=os.getenv("POSTGRES_HOST"),
+        port=os.getenv("POSTGRES_PORT", 5432)
+    )
+except Exception as e:
+    print(f"Database not ready: {e}")
+    sys.exit(-1)
+END
 
-# Use pg_isready to check if the DB is ready
-# 'db' is the service name in your docker-compose.yml
-while ! pg_isready -h db -U agentnexus_user -d agentnexus_db; do
-  sleep 1
-done
-
-echo "Postgres is awake! Running migrations..."
-
-# Run Alembic migrations from the common SDK or specific lobe
-# This ensures your tables (User, ChatHistory) exist before the app starts
+echo "PRESTART: Running Alembic Migrations..."
 alembic upgrade head
 
-echo "Migrations complete. Starting the Lobe..."
+echo "PRESTART: Initializing Vector Store Collections..."
+python -m scripts.init_vector_db
 
+echo "PRESTART: Completed successfully. Handing over to Application..."
 exec "$@"

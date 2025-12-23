@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import { ThemeProvider } from '../core/providers/ThemeProvider';
 import { QueryProvider } from '../core/providers/QueryProvider';
 import { CoreProvider } from '../core/providers/CoreProvider';
+import { AuthGuard } from '../components/AuthGuard';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default function RootLayout({
         <CoreProvider>
           <QueryProvider>
             <ThemeProvider>
-              {children}
+              <AuthGuard>{children}</AuthGuard>
             </ThemeProvider>
           </QueryProvider>
         </CoreProvider>

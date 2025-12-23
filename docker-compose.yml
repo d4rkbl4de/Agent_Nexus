@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # --- FRONTEND: Next.js Standalone ---
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile # Use the standalone builder we discussed
+    container_name: nexus_ui
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+    networks:
+      - nexus_prod_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # --- BACKEND: The API Gateway & Hive Brain ---
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: nexus_api
+    restart: always
+    env_file: .env.prod
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+    command: /app/prestart.sh uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - nexus_prod_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+
+  # --- WORKER: Asynchronous Task Execution ---
+  worker:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: nexus_worker
+    restart: always
+    env_file: .env.prod
+    command: dramatiq common.messaging.broker_config --processes 4 --threads 8
+    depends_on:
+      - redis
+    networks:
+      - nexus_prod_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # --- INFRASTRUCTURE ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexus_db
+    shm_size: 256mb # Optimization for Postgres performance
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexus_prod_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexus_redis
+    command: redis-server --save 60 1 --loglevel warning
+    networks:
+      - nexus_prod_net
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: nexus_vector
+    volumes:
+      - qdrant_prod_data:/qdrant/storage
+    networks:
+      - nexus_prod_net
+
+networks:
+  nexus_prod_net:
+    driver: bridge
+
+volumes:
+  postgres_prod_data:
+  qdrant_prod_data:
