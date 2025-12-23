@@ -1,0 +1,28 @@
+# --- Web & API (FastAPI) ---
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-multipart
+httpx
+
+# --- Database & Migrations (SQL & Vector) ---
+asyncpg
+psycopg2-binary
+SQLAlchemy[asyncio]
+alembic>=1.13
+qdrant-client
+
+# --- Agentic Intelligence (LangChain & Cognition) ---
+langgraph
+langchain-core
+langchain-google-genai
+python-dotenv
+
+# --- Async Task Queue (Dramatiq) ---
+dramatiq[redis]
+redis
+watchdog
+
+# --- Utilities ---
+typing-extensions>=4.5

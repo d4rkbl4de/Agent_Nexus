@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # --- INFRASTRUCTURE LAYER ---
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: agentnexus_user
+      POSTGRES_PASSWORD: nexus_password
+      POSTGRES_DB: agentnexus_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentnexus_user -d agentnexus_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  # --- LOBE LAYER ---
+  x-lobe-base: &lobe-base
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  insightmate:
+    <<: *lobe-base
+    ports:
+      - "8001:8000"
+    command: uvicorn InsightMate.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://agentnexus_user:nexus_password@db/agentnexus_db"
+      REDIS_URL: "redis://redis:6379/0"
+      SERVICE_NAME: "InsightMate"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+
+  studyflow:
+    <<: *lobe-base
+    ports:
+      - "8002:8000"
+    command: uvicorn StudyFlow.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://agentnexus_user:nexus_password@db/agentnexus_db"
+      REDIS_URL: "redis://redis:6379/0"
+      SERVICE_NAME: "StudyFlow"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+
+  chatbuddy:
+    <<: *lobe-base
+    ports:
+      - "8003:8000"
+    command: uvicorn ChatBuddyPlus.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://agentnexus_user:nexus_password@db/agentnexus_db"
+      REDIS_URL: "redis://redis:6379/0"
+      SERVICE_NAME: "ChatBuddy"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+
+  autoagenthub:
+    build: .
+    ports:
+      - "8080:8000"
+    command: uvicorn AutoAgent_Hub.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      insightmate:
+        condition: service_started
+      studyflow:
+        condition: service_started
+      chatbuddy:
+        condition: service_started
+      qdrant:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://agentnexus_user:nexus_password@db/agentnexus_db"
+      INSIGHT_MATE_URL: "http://insightmate:8000"
+      STUDY_FLOW_URL: "http://studyflow:8000"
+      CHAT_BUDDY_URL: "http://chatbuddy:8000"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+      SERVICE_NAME: "AutoAgentHub"
+
+# --- PERSISTENCE LAYER ---
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_storage:
