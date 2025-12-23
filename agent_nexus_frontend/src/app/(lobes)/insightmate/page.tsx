@@ -1,7 +1,7 @@
 'use client';
 
 import { emit } from '../../../core/mediator/emit';
-import { useAgentPulseSelector } from '../../../hooks/useAgentPulseSelector';
+import { useAgentPulseSelector } from '../../../core/hooks/useAgentPulseSelector';
 import { AgentPulse } from '../../../contracts/shared.schema'; // Import the type for explicit casting
 
 const TEST_AGENT_ID = 'insightmate-agent-001';
