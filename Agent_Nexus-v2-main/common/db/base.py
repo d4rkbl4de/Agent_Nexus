@@ -1,35 +1,11 @@
-import logging
 from typing import Any
+from sqlalchemy.ext.declarative import as_declarative, declared_attr
 
-from common.db.postgres import Base
+@as_declarative()
+class Base:
+    id: Any
+    __name__: str
 
-logger = logging.getLogger(__name__)
-
-try:
-    from common.db.models import User, AgentState, AuditLog
-    
-    from common.db.study_models import QuizAttempt, StudyPlan, Quiz, ProgressTracker
-    
-    from common.db.chat_models import Conversation, Message, ContextWindow
-    
-    logger.info("📡 All Hive Mind models successfully registered for migration.")
-
-except ImportError as e:
-    logger.warning(f"⚠️ Partial schema registration: {e}")
-
-target_metadata = Base.metadata
-
-__all__ = [
-    "Base",
-    "target_metadata",
-    "User",
-    "AgentState",
-    "AuditLog",
-    "QuizAttempt",
-    "StudyPlan",
-    "Quiz",
-    "ProgressTracker",
-    "Conversation",
-    "Message",
-    "ContextWindow"
-]
+    @declared_attr
+    def __tablename__(cls) -> str:
+        return cls.__name__.lower()
