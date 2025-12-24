@@ -1,0 +1,64 @@
+###############################################################################
+# 1. SECURITY & SECRETS (Highest Priority)
+###############################################################################
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.crt
+**/secrets/
+**/credentials.json
+# Ignore any infrastructure auto-generated state that might contain keys
+**/.terraform/
+**/terraform.tfstate*
+
+###############################################################################
+# 2. DATA & VECTOR INTELLIGENCE (Prevent Context Poisoning)
+###############################################################################
+# Large local vector databases can crash indexing or leak data
+**/qdrant_storage/
+**/chroma_db/
+**/vector_data/
+**/.milvus/
+**/*.db
+**/*.sqlite3
+**/*.csv
+**/*.parquet
+**/*.jsonl
+
+###############################################################################
+# 3. BACKEND & SDK (Python/Agentic Infrastructure)
+###############################################################################
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.venv/
+env/
+venv/
+**/alembic/versions/  # Migrations are noise; use schemas for context instead
+.pytest_cache/
+.coverage
+.mypy_cache/
+
+###############################################################################
+# 4. FRONTEND & UI (Atomic State & Contracts Only)
+###############################################################################
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/.svelte-kit/
+**/.vercel/
+*.log
+**/npm-debug.log*
+**/yarn-error.log*
+
+###############################################################################
+# 5. DOCKER & DEPLOYMENT
+###############################################################################
+**/.docker/
+**/docker-compose.override.yml
+# We want the AI to see the Dockerfile but not the build context
+**/docker/build_artifacts/

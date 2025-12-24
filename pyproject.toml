@@ -1,0 +1,90 @@
+[tool.poetry]
+name = "agent-nexus"
+version = "0.1.0"
+description = "Modular, autonomous agent backend built on FastAPI and a Core/Lobe architecture."
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "src"}]
+repository = "https://github.com/your-org/agent-nexus"
+homepage = "https://agentnexus.com"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+# Core API & Async Framework
+fastapi = {extras = ["standard"], version = "^0.110.0"}
+# Production ASGI Server (Uvicorn/Gunicorn combo for scaling and robustness)
+gunicorn = "^22.0.0"
+uvicorn = "^0.28.0"
+# Configuration & Validation
+pydantic = {extras = ["email"], version = "^2.6.4"}
+pydantic-settings = "^2.2.1"
+# Database Stack
+sqlalchemy = "^2.0.28"
+alembic = "^1.13.1"
+# Async PostgreSQL Driver (psycopg is the modern choice)
+psycopg = {extras = ["binary", "pool"], version = "^3.1.18"}
+# LLM & Vector DB Stack
+openai = "^1.16.2"
+qdrant-client = "^1.8.0"
+# Task Queue (We'll use Redis/Dramatiq/etc. for the worker, placeholder for now)
+dramatiq = "^1.15.1"
+redis = "^5.0.3"
+# Utilities
+python-dotenv = "^1.0.1"
+tenacity = "^8.2.3"
+httpx = "^0.27.0" # Good practice for making async API calls
+
+[tool.poetry.group.dev.dependencies]
+# Code Quality & Formatting
+black = "^24.3.0"
+ruff = "^0.3.5"
+mypy = "^1.9.0"
+# Testing
+pytest = "^8.1.1"
+pytest-asyncio = "^0.23.6"
+pytest-cov = "^5.0.0"
+# Developer Tools
+ipython = "^8.23.0"
+
+# --- Tool Configuration: Enforcing Code Quality ---
+
+# Configuration for Black (code formatter)
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+# Configuration for Ruff (linter/formatter)
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Exclude test directories and alembic versions
+exclude = ["alembic/versions/*", "src/tests/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "A", "B"]
+
+# Configuration for MyPy (static type checker)
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+# Exclude test directories from strict typing for flexibility
+exclude = ["src/tests/"]
+
+# --- Executable Scripts: Production and Dev Entry Points ---
+# Gunicorn is used in PROD to manage Uvicorn workers, providing robustness.
+# Uvicorn is used in DEV for the --reload feature.
+[tool.poetry.scripts]
+# Production: Uses Gunicorn to run Uvicorn with multiple workers for max performance.
+start-prod = "gunicorn src.app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000"
+# Development: Uses Uvicorn for local hot-reloading (debug-friendly).
+start-dev = "uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload"
+# Background worker entry point
+run-worker = "dramatiq src.core.tasks.worker"
+# Development database reset script
+db-reset = "scripts.dev_reset:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

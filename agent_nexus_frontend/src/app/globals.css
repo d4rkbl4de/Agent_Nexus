@@ -2,26 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --radius: 0.5rem;
+  }
+
+  body {
+    @apply bg-nexus-bg text-foreground antialiased min-h-screen font-sans overflow-x-hidden;
+    background-image: url('/backgrounds/grid.svg'), url('/backgrounds/noise.svg');
+    background-attachment: fixed;
+    background-size: 500px 500px, cover;
+    background-position: center, center;
+  }
+
+  ::selection {
+    @apply bg-nexus-primary text-nexus-dark;
+  }
+
+  /* Custom Scrollbar for Themed Consistency */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-nexus-dark/50;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-nexus-primary-darker rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-nexus-primary;
+  }
+
+  a {
+    @apply text-nexus-primary hover:text-nexus-secondary transition-colors duration-200;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display text-foreground;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Neon Effect Utility */
+  .neon-border {
+    @apply border border-nexus-primary/30 shadow-glow-sm;
+  }
+
+  /* Terminal Input Styling */
+  .terminal-input {
+    @apply bg-nexus-dark border-b border-nexus-primary/50 text-nexus-light placeholder:text-foreground/50 focus:border-nexus-primary transition-colors duration-300;
+  }
+
+  /* Core UI Container (Screen-aligned and centered) */
+  .ui-container {
+    @apply max-w-[1400px] mx-auto px-4 md:px-8;
+  }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  /* Text Shadow for Neon Effect */
+  .text-shadow-neon {
+    text-shadow: 0 0 5px var(--color-nexus-primary-lighter), 0 0 10px var(--color-nexus-primary-lighter);
+  }
+
+  /* Forced Hardware Acceleration for smooth animations */
+  .will-change-transform {
+    will-change: transform;
   }
 }
