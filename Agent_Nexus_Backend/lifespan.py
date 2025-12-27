@@ -1,38 +1,48 @@
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from common.config.settings import settings
-from common.db.engine import engine
-from common.config.logging import logger
-from health.checks import check_system_health
-from resilience.circuit_breaker import CircuitBreaker
+
+from common.config.logging_config import logger
+from common.memory.vector_db import vector_db_client
+from common.memory.short_term import stm_client
+from lobes import lobe_registry
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.circuit_breaker = CircuitBreaker(
-        failure_threshold=settings.CIRCUIT_FAILURE_THRESHOLD,
-        recovery_timeout=settings.CIRCUIT_RECOVERY_TIMEOUT
-    )
+    trace_id = "SYSTEM_BOOT_INIT"
     
     try:
-        health_status = await check_system_health()
-        if not health_status["status"] == "healthy":
-            logger.warning(f"System health degraded at startup: {health_status}")
+        logger.info("BOOTSTRAP_START | Initializing Hive Mind Infrastructure", trace_id=trace_id)
+        
+        await stm_client.connect()
+        logger.info("INFRA_READY | Short-Term Memory (Redis) Connected", trace_id=trace_id)
+        
+        await vector_db_client.connect()
+        logger.info("INFRA_READY | Vector Database (Chroma/Qdrant) Connected", trace_id=trace_id)
+        
+        await lobe_registry.initialize_all()
+        logger.info(f"LOBES_READY | Active Lobes: {', '.join(lobe_registry.list_active_lobes())}", trace_id=trace_id)
+        
+        logger.info("BOOTSTRAP_COMPLETE | Agent Nexus Backend is Online", trace_id=trace_id)
+        yield
+        
     except Exception as e:
-        logger.error(f"Critical failure during health check: {str(e)}")
-
-    yield
-
-    try:
+        logger.critical(f"BOOTSTRAP_PANIC | System Failure during startup: {str(e)}", trace_id=trace_id)
+        raise e
+    
+    finally:
+        logger.info("SHUTDOWN_START | Commencing Graceful Teardown", trace_id=trace_id)
+        
         shutdown_tasks = [
-            engine.dispose(),
+            stm_client.disconnect(),
+            vector_db_client.disconnect()
         ]
         
-        if hasattr(app.state, "redis_client"):
-            shutdown_tasks.append(app.state.redis_client.close())
-            
+        active_lobes = lobe_registry.list_active_lobes()
+        for lobe_name in active_lobes:
+            lobe = lobe_registry.get_lobe(lobe_name)
+            if hasattr(lobe, "stop"):
+                shutdown_tasks.append(lobe.stop())
+
         await asyncio.gather(*shutdown_tasks, return_exceptions=True)
-    except Exception as e:
-        logger.error(f"Error during graceful shutdown: {str(e)}")
-    finally:
-        logger.info("Hive Mind Thalamus shutdown sequence complete.")
+        logger.info("SHUTDOWN_COMPLETE | All resources released", trace_id=trace_id)

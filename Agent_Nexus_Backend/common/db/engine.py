@@ -1,32 +1,58 @@
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.pool import QueuePool
+import ssl
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from common.config.secrets import secrets
 from common.config.logging import logger
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://postgres:postgres@localhost:5432/agent_nexus"
-)
+DATABASE_URL = secrets.DATABASE_URL
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "20"))
-DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
-DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "1800"))
-
-engine = create_engine(
+engine = create_async_engine(
     DATABASE_URL,
-    poolclass=QueuePool,
-    pool_size=DB_POOL_SIZE,
-    max_overflow=DB_MAX_OVERFLOW,
-    pool_timeout=DB_POOL_TIMEOUT,
-    pool_recycle=DB_POOL_RECYCLE,
+    echo=False,
+    future=True,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
     pool_pre_ping=True,
-    echo=os.getenv("DB_ECHO", "False").lower() == "true",
     connect_args={
-        "application_name": "agent_nexus_backend",
-        "connect_timeout": 10,
-        "options": "-c timezone=utc"
+        "command_timeout": 60,
+        "server_settings": {
+            "application_name": "agent_nexus_backend",
+            "timezone": "UTC",
+        }
     }
 )
 
-logger.info(f"DB_ENGINE_INITIALIZED | Pool: {DB_POOL_SIZE} | Overflow: {DB_MAX_OVERFLOW}")
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False
+)
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"DATABASE_SESSION_ERROR | Error: {str(e)}")
+            raise
+        finally:
+            await session.close()
+
+async def init_db_connection() -> None:
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(lambda x: None)
+        logger.info("DATABASE_ENGINE_READY | Connection pool initialized")
+    except Exception as e:
+        logger.critical(f"DATABASE_CONNECTION_FAILURE | Error: {str(e)}")
+        raise
+
+async def close_db_connection() -> None:
+    await engine.dispose()
+    logger.info("DATABASE_ENGINE_SHUTDOWN | Connection pool disposed")

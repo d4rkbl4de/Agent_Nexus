@@ -1,39 +1,31 @@
-import logging
-from .postgres import engine, SessionLocal, get_db
-from .base import Base
-from .session import tenant_context, get_tenant_session
-from .crud import BaseCRUD
-from .exceptions import DatabaseError, EntityNotFoundError
+from common.db.base import Base, AgenticEntity, SingletonEntity
+from common.db.engine import engine, get_db_session, init_db_connection, close_db_connection
+from common.db.session import AsyncSessionLocal
 
-logger = logging.getLogger(__name__)
+class DatabaseManifest:
+    def __init__(self):
+        self.base = Base
+        self.engine = engine
+        self.session_factory = AsyncSessionLocal
 
-try:
-    from .models import User, Organization
-    from .mixins import TimestampMixin, AuditMixin
-    from .study_models import StudyPlan, Quiz, Progress
-    from .chat_models import ChatSession, Message, AgentMemory
-except ImportError as e:
-    logger.critical(f"Database model registration failed: {str(e)}")
-    raise
+    async def check_health(self) -> bool:
+        try:
+            async with self.engine.connect() as conn:
+                await conn.execute("SELECT 1")
+            return True
+        except Exception:
+            return False
+
+db_manifest = DatabaseManifest()
 
 __all__ = [
-    "engine",
-    "SessionLocal",
-    "get_db",
     "Base",
-    "tenant_context",
-    "get_tenant_session",
-    "BaseCRUD",
-    "DatabaseError",
-    "EntityNotFoundError",
-    "User",
-    "Organization",
-    "TimestampMixin",
-    "AuditMixin",
-    "StudyPlan",
-    "Quiz",
-    "Progress",
-    "ChatSession",
-    "Message",
-    "AgentMemory",
+    "AgenticEntity",
+    "SingletonEntity",
+    "engine",
+    "get_db_session",
+    "init_db_connection",
+    "close_db_connection",
+    "AsyncSessionLocal",
+    "db_manifest"
 ]

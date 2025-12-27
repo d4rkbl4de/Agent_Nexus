@@ -1,27 +1,38 @@
-import logging
-from typing import Optional
-from .llm_wrapper import LLMWrapper
-from .exceptions import AIProviderError
+from common.ai_sdk.client import AgenticAISDK
+from common.ai_sdk.routing import model_router
+from common.ai_sdk.prompts import PromptManager
+from common.ai_sdk.tokenization import TokenCounter
+from common.ai_sdk.exceptions import (
+    AISDKException,
+    ProviderError,
+    TokenLimitExceeded,
+    RateLimitReached,
+    SafetyConstraintViolation
+)
 
-logger = logging.getLogger("agent_nexus.ai_sdk")
-logger.setLevel(logging.INFO)
+class AISDKManifest:
+    _instance = None
 
-_wrapper: Optional[LLMWrapper] = None
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(AISDKManifest, cls).__new__(cls)
+            cls._instance.client = AgenticAISDK()
+            cls._instance.router = model_router
+            cls._instance.prompts = PromptManager()
+            cls._instance.tokenizer = TokenCounter()
+        return cls._instance
 
-def get_ai_client() -> LLMWrapper:
-   
-    global _wrapper
-    if _wrapper is None:
-        logger.info("Initializing Agent Nexus Unified AI Client...")
-        _wrapper = LLMWrapper()
-    return _wrapper
-
+ai_sdk = AISDKManifest()
 
 __all__ = [
-    "get_ai_client",
-    "LLMWrapper",
-    "AIProviderError",
-    "logger"
+    "ai_sdk",
+    "AgenticAISDK",
+    "model_router",
+    "PromptManager",
+    "TokenCounter",
+    "AISDKException",
+    "ProviderError",
+    "TokenLimitExceeded",
+    "RateLimitReached",
+    "SafetyConstraintViolation"
 ]
-
-
